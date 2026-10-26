@@ -1,0 +1,182 @@
+[
+  {
+    "query_id": "RET-01",
+    "project_id": "ALPHA",
+    "question": "What is the UAT sign-off date for Project Alpha?",
+    "relevant_doc_ids": [
+      "REQ-01"
+    ],
+    "expected_fact": "2026-11-20"
+  },
+  {
+    "query_id": "RET-02",
+    "project_id": "BETA",
+    "question": "When is the planned release for Project Beta?",
+    "relevant_doc_ids": [
+      "REQ-02"
+    ],
+    "expected_fact": "2026-12-08"
+  },
+  {
+    "query_id": "RET-03",
+    "project_id": "GAMMA",
+    "question": "What is the main delivery risk for Project Gamma?",
+    "relevant_doc_ids": [
+      "REQ-03"
+    ],
+    "expected_fact": "staging access delays"
+  },
+  {
+    "query_id": "RET-04",
+    "project_id": "ALPHA",
+    "question": "Who owns delivery documentation for Project Alpha?",
+    "relevant_doc_ids": [
+      "REQ-04"
+    ],
+    "expected_fact": "Linh Nguyen"
+  },
+  {
+    "query_id": "RET-05",
+    "project_id": "BETA",
+    "question": "What is the UAT sign-off date for Project Beta?",
+    "relevant_doc_ids": [
+      "REQ-05"
+    ],
+    "expected_fact": "2026-11-27"
+  },
+  {
+    "query_id": "RET-06",
+    "project_id": "GAMMA",
+    "question": "When is the planned release for Project Gamma?",
+    "relevant_doc_ids": [
+      "TEC-01"
+    ],
+    "expected_fact": "2026-12-16"
+  },
+  {
+    "query_id": "RET-07",
+    "project_id": "ALPHA",
+    "question": "What is the main delivery risk for Project Alpha?",
+    "relevant_doc_ids": [
+      "TEC-02"
+    ],
+    "expected_fact": "external identity service availability"
+  },
+  {
+    "query_id": "RET-08",
+    "project_id": "BETA",
+    "question": "Who owns delivery documentation for Project Beta?",
+    "relevant_doc_ids": [
+      "TEC-03"
+    ],
+    "expected_fact": "Minh Tran"
+  },
+  {
+    "query_id": "RET-09",
+    "project_id": "GAMMA",
+    "question": "What is the UAT sign-off date for Project Gamma?",
+    "relevant_doc_ids": [
+      "TEC-04"
+    ],
+    "expected_fact": "2026-12-04"
+  },
+  {
+    "query_id": "RET-10",
+    "project_id": "ALPHA",
+    "question": "When is the planned release for Project Alpha?",
+    "relevant_doc_ids": [
+      "TEC-05"
+    ],
+    "expected_fact": "2026-12-03"
+  },
+  {
+    "query_id": "RET-11",
+    "project_id": "BETA",
+    "question": "What is the main delivery risk for Project Beta?",
+    "relevant_doc_ids": [
+      "PM-01"
+    ],
+    "expected_fact": "vendor webhook instability"
+  },
+  {
+    "query_id": "RET-12",
+    "project_id": "GAMMA",
+    "question": "Who owns delivery documentation for Project Gamma?",
+    "relevant_doc_ids": [
+      "PM-02"
+    ],
+    "expected_fact": "Hoa Le"
+  },
+  {
+    "query_id": "RET-13",
+    "project_id": "ALPHA",
+    "question": "What is the UAT sign-off date for Project Alpha?",
+    "relevant_doc_ids": [
+      "PM-03"
+    ],
+    "expected_fact": "2026-11-20"
+  },
+  {
+    "query_id": "RET-14",
+    "project_id": "BETA",
+    "question": "When is the planned release for Project Beta?",
+    "relevant_doc_ids": [
+      "PM-04"
+    ],
+    "expected_fact": "2026-12-08"
+  },
+  {
+    "query_id": "RET-15",
+    "project_id": "GAMMA",
+    "question": "What is the main delivery risk for Project Gamma?",
+    "relevant_doc_ids": [
+      "PM-05"
+    ],
+    "expected_fact": "staging access delays"
+  },
+  {
+    "query_id": "RET-16",
+    "project_id": "ALPHA",
+    "question": "Who owns delivery documentation for Project Alpha?",
+    "relevant_doc_ids": [
+      "REQ-01"
+    ],
+    "expected_fact": "Linh Nguyen"
+  },
+  {
+    "query_id": "RET-17",
+    "project_id": "BETA",
+    "question": "What is the UAT sign-off date for Project Beta?",
+    "relevant_doc_ids": [
+      "REQ-02"
+    ],
+    "expected_fact": "2026-11-27"
+  },
+  {
+    "query_id": "RET-18",
+    "project_id": "GAMMA",
+    "question": "When is the planned release for Project Gamma?",
+    "relevant_doc_ids": [
+      "REQ-03"
+    ],
+    "expected_fact": "2026-12-16"
+  },
+  {
+    "query_id": "RET-19",
+    "project_id": "ALPHA",
+    "question": "What is the main delivery risk for Project Alpha?",
+    "relevant_doc_ids": [
+      "REQ-04"
+    ],
+    "expected_fact": "external identity service availability"
+  },
+  {
+    "query_id": "RET-20",
+    "project_id": "BETA",
+    "question": "Who owns delivery documentation for Project Beta?",
+    "relevant_doc_ids": [
+      "REQ-05"
+    ],
+    "expected_fact": "Minh Tran"
+  }
+]

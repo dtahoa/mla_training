@@ -1,0 +1,122 @@
+[
+  {
+    "issue_id": "CASE-01",
+    "text": "Production checkout API down for all users",
+    "category": "Bug",
+    "priority": "P1"
+  },
+  {
+    "issue_id": "CASE-02",
+    "text": "Critical payment processing fails globally",
+    "category": "Bug",
+    "priority": "P1"
+  },
+  {
+    "issue_id": "CASE-03",
+    "text": "Data export returns 500 for all customers",
+    "category": "Bug",
+    "priority": "P1"
+  },
+  {
+    "issue_id": "CASE-04",
+    "text": "Passwords accepted but SSO blocks all logins",
+    "category": "Bug",
+    "priority": "P1"
+  },
+  {
+    "issue_id": "CASE-05",
+    "text": "Add download button to sprint chart",
+    "category": "Feature",
+    "priority": "P3"
+  },
+  {
+    "issue_id": "CASE-06",
+    "text": "Implement dark theme on PM dashboard",
+    "category": "Feature",
+    "priority": "P3"
+  },
+  {
+    "issue_id": "CASE-07",
+    "text": "Add a custom Jira field in status report",
+    "category": "Feature",
+    "priority": "P2"
+  },
+  {
+    "issue_id": "CASE-08",
+    "text": "Support export of reports as CSV",
+    "category": "Feature",
+    "priority": "P3"
+  },
+  {
+    "issue_id": "CASE-09",
+    "text": "What is the expected UAT deadline?",
+    "category": "Question",
+    "priority": "P3"
+  },
+  {
+    "issue_id": "CASE-10",
+    "text": "How many issues are in the current sprint?",
+    "category": "Question",
+    "priority": "P3"
+  },
+  {
+    "issue_id": "CASE-11",
+    "text": "Where are weekly release notes stored?",
+    "category": "Question",
+    "priority": "P3"
+  },
+  {
+    "issue_id": "CASE-12",
+    "text": "Who must approve an incident report?",
+    "category": "Question",
+    "priority": "P2"
+  },
+  {
+    "issue_id": "CASE-13",
+    "text": "Vendor API may miss December cutover",
+    "category": "Risk",
+    "priority": "P2"
+  },
+  {
+    "issue_id": "CASE-14",
+    "text": "Security certificate expires before go-live",
+    "category": "Risk",
+    "priority": "P1"
+  },
+  {
+    "issue_id": "CASE-15",
+    "text": "Single reviewer may delay UAT sign-off",
+    "category": "Risk",
+    "priority": "P2"
+  },
+  {
+    "issue_id": "CASE-16",
+    "text": "No fallback if external OAuth is down",
+    "category": "Risk",
+    "priority": "P1"
+  },
+  {
+    "issue_id": "CASE-17",
+    "text": "Sort order changes unexpectedly on issues page",
+    "category": "Bug",
+    "priority": "P2"
+  },
+  {
+    "issue_id": "CASE-18",
+    "text": "Change report frequency from weekly to daily",
+    "category": "Feature",
+    "priority": "P2"
+  },
+  {
+    "issue_id": "CASE-19",
+    "text": "Which region hosts our staging cluster?",
+    "category": "Question",
+    "priority": "P3"
+  },
+  {
+    "issue_id": "CASE-20",
+    "text": "Unreviewed dependencies could delay release",
+    "category": "Risk",
+    "priority": "P2"
+  }
+]

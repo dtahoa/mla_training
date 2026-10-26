@@ -1,0 +1,167 @@
+[
+  {
+    "doc_id": "REQ-01",
+    "project_id": "ALPHA",
+    "category": "requirements",
+    "title": "Alpha – Scope and acceptance",
+    "path": "data/documents/REQ-01_alpha_scope_and_acceptance.md",
+    "uat": "2026-11-20",
+    "release": "2026-12-03",
+    "risk": "external identity service availability",
+    "owner": "Linh Nguyen"
+  },
+  {
+    "doc_id": "REQ-02",
+    "project_id": "BETA",
+    "category": "requirements",
+    "title": "Beta – Release readiness",
+    "path": "data/documents/REQ-02_beta_release_readiness.md",
+    "uat": "2026-11-27",
+    "release": "2026-12-08",
+    "risk": "vendor webhook instability",
+    "owner": "Minh Tran"
+  },
+  {
+    "doc_id": "REQ-03",
+    "project_id": "GAMMA",
+    "category": "requirements",
+    "title": "Gamma – Non-functional expectations",
+    "path": "data/documents/REQ-03_gamma_non-functional_expectations.md",
+    "uat": "2026-12-04",
+    "release": "2026-12-16",
+    "risk": "staging access delays",
+    "owner": "Hoa Le"
+  },
+  {
+    "doc_id": "REQ-04",
+    "project_id": "ALPHA",
+    "category": "requirements",
+    "title": "Alpha – UAT and sign-off",
+    "path": "data/documents/REQ-04_alpha_uat_and_sign-off.md",
+    "uat": "2026-11-20",
+    "release": "2026-12-03",
+    "risk": "external identity service availability",
+    "owner": "Linh Nguyen"
+  },
+  {
+    "doc_id": "REQ-05",
+    "project_id": "BETA",
+    "category": "requirements",
+    "title": "Beta – Integration requirements",
+    "path": "data/documents/REQ-05_beta_integration_requirements.md",
+    "uat": "2026-11-27",
+    "release": "2026-12-08",
+    "risk": "vendor webhook instability",
+    "owner": "Minh Tran"
+  },
+  {
+    "doc_id": "TEC-01",
+    "project_id": "GAMMA",
+    "category": "technical",
+    "title": "Gamma – API design",
+    "path": "data/documents/TEC-01_gamma_api_design.md",
+    "uat": "2026-12-04",
+    "release": "2026-12-16",
+    "risk": "staging access delays",
+    "owner": "Hoa Le"
+  },
+  {
+    "doc_id": "TEC-02",
+    "project_id": "ALPHA",
+    "category": "technical",
+    "title": "Alpha – Security architecture",
+    "path": "data/documents/TEC-02_alpha_security_architecture.md",
+    "uat": "2026-11-20",
+    "release": "2026-12-03",
+    "risk": "external identity service availability",
+    "owner": "Linh Nguyen"
+  },
+  {
+    "doc_id": "TEC-03",
+    "project_id": "BETA",
+    "category": "technical",
+    "title": "Beta – Data architecture",
+    "path": "data/documents/TEC-03_beta_data_architecture.md",
+    "uat": "2026-11-27",
+    "release": "2026-12-08",
+    "risk": "vendor webhook instability",
+    "owner": "Minh Tran"
+  },
+  {
+    "doc_id": "TEC-04",
+    "project_id": "GAMMA",
+    "category": "technical",
+    "title": "Gamma – CI and staging",
+    "path": "data/documents/TEC-04_gamma_ci_and_staging.md",
+    "uat": "2026-12-04",
+    "release": "2026-12-16",
+    "risk": "staging access delays",
+    "owner": "Hoa Le"
+  },
+  {
+    "doc_id": "TEC-05",
+    "project_id": "ALPHA",
+    "category": "technical",
+    "title": "Alpha – Observability and recovery",
+    "path": "data/documents/TEC-05_alpha_observability_and_recovery.md",
+    "uat": "2026-11-20",
+    "release": "2026-12-03",
+    "risk": "external identity service availability",
+    "owner": "Linh Nguyen"
+  },
+  {
+    "doc_id": "PM-01",
+    "project_id": "BETA",
+    "category": "pm",
+    "title": "Beta – Delivery plan",
+    "path": "data/documents/PM-01_beta_delivery_plan.txt",
+    "uat": "2026-11-27",
+    "release": "2026-12-08",
+    "risk": "vendor webhook instability",
+    "owner": "Minh Tran"
+  },
+  {
+    "doc_id": "PM-02",
+    "project_id": "GAMMA",
+    "category": "pm",
+    "title": "Gamma – Risk register",
+    "path": "data/documents/PM-02_gamma_risk_register.txt",
+    "uat": "2026-12-04",
+    "release": "2026-12-16",
+    "risk": "staging access delays",
+    "owner": "Hoa Le"
+  },
+  {
+    "doc_id": "PM-03",
+    "project_id": "ALPHA",
+    "category": "pm",
+    "title": "Alpha – Sprint goals",
+    "path": "data/documents/PM-03_alpha_sprint_goals.txt",
+    "uat": "2026-11-20",
+    "release": "2026-12-03",
+    "risk": "external identity service availability",
+    "owner": "Linh Nguyen"
+  },
+  {
+    "doc_id": "PM-04",
+    "project_id": "BETA",
+    "category": "pm",
+    "title": "Beta – Weekly project notes",
+    "path": "data/documents/PM-04_beta_weekly_project_notes.txt",
+    "uat": "2026-11-27",
+    "release": "2026-12-08",
+    "risk": "vendor webhook instability",
+    "owner": "Minh Tran"
+  },
+  {
+    "doc_id": "PM-05",
+    "project_id": "GAMMA",
+    "category": "pm",
+    "title": "Gamma – Approval workflow",
+    "path": "data/documents/PM-05_gamma_approval_workflow.txt",
+    "uat": "2026-12-04",
+    "release": "2026-12-16",
+    "risk": "staging access delays",
+    "owner": "Hoa Le"
+  }
+]

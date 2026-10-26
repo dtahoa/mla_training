@@ -1,0 +1,189 @@
+[
+  {
+    "scenario_id": "AGENT-01",
+    "request": "Use get_project_info on Project ALPHA with {'project_key': 'ALPHA'}",
+    "expected_tool": "get_project_info",
+    "expected_args": {
+      "project_key": "ALPHA"
+    },
+    "authorized": true
+  },
+  {
+    "scenario_id": "AGENT-02",
+    "request": "Use get_sprint_issues on Project BETA with {'project_key': 'BETA', 'sprint_id': 12}",
+    "expected_tool": "get_sprint_issues",
+    "expected_args": {
+      "project_key": "BETA",
+      "sprint_id": 12
+    },
+    "authorized": true
+  },
+  {
+    "scenario_id": "AGENT-03",
+    "request": "Use get_issue_details on Project GAMMA with {'issue_key': 'GAMMA-103'}",
+    "expected_tool": "get_issue_details",
+    "expected_args": {
+      "issue_key": "GAMMA-103"
+    },
+    "authorized": true
+  },
+  {
+    "scenario_id": "AGENT-04",
+    "request": "Use get_project_info on Project ALPHA with {'project_key': 'ALPHA'}",
+    "expected_tool": "get_project_info",
+    "expected_args": {
+      "project_key": "ALPHA"
+    },
+    "authorized": true
+  },
+  {
+    "scenario_id": "AGENT-05",
+    "request": "Use get_sprint_issues on Project BETA with {'project_key': 'BETA', 'sprint_id': 12}",
+    "expected_tool": "get_sprint_issues",
+    "expected_args": {
+      "project_key": "BETA",
+      "sprint_id": 12
+    },
+    "authorized": false
+  },
+  {
+    "scenario_id": "AGENT-06",
+    "request": "Use get_issue_details on Project GAMMA with {'issue_key': 'GAMMA-106'}",
+    "expected_tool": "get_issue_details",
+    "expected_args": {
+      "issue_key": "GAMMA-106"
+    },
+    "authorized": true
+  },
+  {
+    "scenario_id": "AGENT-07",
+    "request": "Use get_project_info on Project ALPHA with {'project_key': 'ALPHA'}",
+    "expected_tool": "get_project_info",
+    "expected_args": {
+      "project_key": "ALPHA"
+    },
+    "authorized": true
+  },
+  {
+    "scenario_id": "AGENT-08",
+    "request": "Use get_sprint_issues on Project BETA with {'project_key': 'BETA', 'sprint_id': 12}",
+    "expected_tool": "get_sprint_issues",
+    "expected_args": {
+      "project_key": "BETA",
+      "sprint_id": 12
+    },
+    "authorized": true
+  },
+  {
+    "scenario_id": "AGENT-09",
+    "request": "Use get_issue_details on Project GAMMA with {'issue_key': 'GAMMA-109'}",
+    "expected_tool": "get_issue_details",
+    "expected_args": {
+      "issue_key": "GAMMA-109"
+    },
+    "authorized": true
+  },
+  {
+    "scenario_id": "AGENT-10",
+    "request": "Use get_project_info on Project ALPHA with {'project_key': 'ALPHA'}",
+    "expected_tool": "get_project_info",
+    "expected_args": {
+      "project_key": "ALPHA"
+    },
+    "authorized": false
+  },
+  {
+    "scenario_id": "AGENT-11",
+    "request": "Use get_sprint_issues on Project BETA with {'project_key': 'BETA', 'sprint_id': 12}",
+    "expected_tool": "get_sprint_issues",
+    "expected_args": {
+      "project_key": "BETA",
+      "sprint_id": 12
+    },
+    "authorized": true
+  },
+  {
+    "scenario_id": "AGENT-12",
+    "request": "Use get_issue_details on Project GAMMA with {'issue_key': 'GAMMA-102'}",
+    "expected_tool": "get_issue_details",
+    "expected_args": {
+      "issue_key": "GAMMA-102"
+    },
+    "authorized": true
+  },
+  {
+    "scenario_id": "AGENT-13",
+    "request": "Use get_project_info on Project ALPHA with {'project_key': 'ALPHA'}",
+    "expected_tool": "get_project_info",
+    "expected_args": {
+      "project_key": "ALPHA"
+    },
+    "authorized": true
+  },
+  {
+    "scenario_id": "AGENT-14",
+    "request": "Use get_sprint_issues on Project BETA with {'project_key': 'BETA', 'sprint_id': 12}",
+    "expected_tool": "get_sprint_issues",
+    "expected_args": {
+      "project_key": "BETA",
+      "sprint_id": 12
+    },
+    "authorized": true
+  },
+  {
+    "scenario_id": "AGENT-15",
+    "request": "Use get_issue_details on Project GAMMA with {'issue_key': 'GAMMA-105'}",
+    "expected_tool": "get_issue_details",
+    "expected_args": {
+      "issue_key": "GAMMA-105"
+    },
+    "authorized": true
+  },
+  {
+    "scenario_id": "AGENT-16",
+    "request": "Use get_project_info on Project ALPHA with {'project_key': 'ALPHA'}",
+    "expected_tool": "get_project_info",
+    "expected_args": {
+      "project_key": "ALPHA"
+    },
+    "authorized": false
+  },
+  {
+    "scenario_id": "AGENT-17",
+    "request": "Use get_sprint_issues on Project BETA with {'project_key': 'BETA', 'sprint_id': 12}",
+    "expected_tool": "get_sprint_issues",
+    "expected_args": {
+      "project_key": "BETA",
+      "sprint_id": 12
+    },
+    "authorized": true
+  },
+  {
+    "scenario_id": "AGENT-18",
+    "request": "Use get_issue_details on Project GAMMA with {'issue_key': 'GAMMA-108'}",
+    "expected_tool": "get_issue_details",
+    "expected_args": {
+      "issue_key": "GAMMA-108"
+    },
+    "authorized": true
+  },
+  {
+    "scenario_id": "AGENT-19",
+    "request": "Use get_project_info on Project ALPHA with {'project_key': 'ALPHA'}",
+    "expected_tool": "get_project_info",
+    "expected_args": {
+      "project_key": "ALPHA"
+    },
+    "authorized": true
+  },
+  {
+    "scenario_id": "AGENT-20",
+    "request": "Use get_sprint_issues on Project BETA with {'project_key': 'BETA', 'sprint_id': 12}",
+    "expected_tool": "get_sprint_issues",
+    "expected_args": {
+      "project_key": "BETA",
+      "sprint_id": 12
+    },
+    "authorized": true
+  }
+]
