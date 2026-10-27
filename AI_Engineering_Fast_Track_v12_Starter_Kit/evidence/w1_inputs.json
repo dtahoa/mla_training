@@ -1,0 +1,82 @@
+[
+  {
+    "issue_id": "CASE-01",
+    "text": "Production checkout API down for all users"
+  },
+  {
+    "issue_id": "CASE-02",
+    "text": "Critical payment processing fails globally"
+  },
+  {
+    "issue_id": "CASE-03",
+    "text": "Data export returns 500 for all customers"
+  },
+  {
+    "issue_id": "CASE-04",
+    "text": "Passwords accepted but SSO blocks all logins"
+  },
+  {
+    "issue_id": "CASE-05",
+    "text": "Add download button to sprint chart"
+  },
+  {
+    "issue_id": "CASE-06",
+    "text": "Implement dark theme on PM dashboard"
+  },
+  {
+    "issue_id": "CASE-07",
+    "text": "Add a custom Jira field in status report"
+  },
+  {
+    "issue_id": "CASE-08",
+    "text": "Support export of reports as CSV"
+  },
+  {
+    "issue_id": "CASE-09",
+    "text": "What is the expected UAT deadline?"
+  },
+  {
+    "issue_id": "CASE-10",
+    "text": "How many issues are in the current sprint?"
+  },
+  {
+    "issue_id": "CASE-11",
+    "text": "Where are weekly release notes stored?"
+  },
+  {
+    "issue_id": "CASE-12",
+    "text": "Who must approve an incident report?"
+  },
+  {
+    "issue_id": "CASE-13",
+    "text": "Vendor API may miss December cutover"
+  },
+  {
+    "issue_id": "CASE-14",
+    "text": "Security certificate expires before go-live"
+  },
+  {
+    "issue_id": "CASE-15",
+    "text": "Single reviewer may delay UAT sign-off"
+  },
+  {
+    "issue_id": "CASE-16",
+    "text": "No fallback if external OAuth is down"
+  },
+  {
+    "issue_id": "CASE-17",
+    "text": "Sort order changes unexpectedly on issues page"
+  },
+  {
+    "issue_id": "CASE-18",
+    "text": "Change report frequency from weekly to daily"
+  },
+  {
+    "issue_id": "CASE-19",
+    "text": "Which region hosts our staging cluster?"
+  },
+  {
+    "issue_id": "CASE-20",
+    "text": "Unreviewed dependencies could delay release"
+  }
+]
