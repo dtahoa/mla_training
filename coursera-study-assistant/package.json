@@ -1,0 +1,31 @@
+{
+  "name": "coursera-study-assistant",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Human-in-the-loop study assistant for the IBM AI Transformation Advisor course on Coursera (Playwright + Node.js).",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "cs": "node src/cli.ts",
+    "login": "node src/cli.ts login",
+    "probe": "node src/cli.ts probe",
+    "sync": "node src/cli.ts sync",
+    "study": "node src/cli.ts study",
+    "status": "node src/cli.ts status",
+    "quiz": "node src/cli.ts quiz",
+    "ask": "node src/cli.ts ask",
+    "summary": "node src/cli.ts summary",
+    "backfill": "node src/cli.ts backfill",
+    "test": "node --test \"test/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "playwright": "^1.65.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2"
+  }
+}
