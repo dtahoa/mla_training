@@ -1,0 +1,29 @@
+{
+  "name": "partneru-study-assistant",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Human-in-the-loop study assistant for OpenAI PartnerU programs on Sana (Playwright + Node.js), starting with OpenAI Technical Practitioner.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "pu": "node src/cli.ts",
+    "login": "node src/cli.ts login",
+    "probe": "node src/cli.ts probe",
+    "sync": "node src/cli.ts sync",
+    "status": "node src/cli.ts status",
+    "study": "node src/cli.ts study",
+    "backfill": "node src/cli.ts backfill",
+    "summary": "node src/cli.ts summary",
+    "test": "node --test \"test/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "playwright": "^1.65.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2"
+  }
+}

@@ -1,0 +1,5 @@
+node_modules/
+# Everything the tool writes at runtime: Chrome profile (cookies/session),
+# progress, captured course text, notes, probe reports, audit log.
+.data/
+.env
