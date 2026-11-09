@@ -23,6 +23,10 @@ export interface Config {
   quizLogPath: string;
   studyLanguage: string;
   maxModules: number;
+  /** AUTO_MARK_COMPLETE=1: click "Mark as completed" on readings / ungraded items without a key press. */
+  autoMarkComplete: boolean;
+  /** AUTO_CAPTURE (on unless 0): save each video's transcript to local notes when you open it. */
+  autoCapture: boolean;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -44,6 +48,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     quizLogPath: path.join(courseDir, 'quiz-results.jsonl'),
     studyLanguage: env.STUDY_LANGUAGE?.trim() || 'Vietnamese',
     maxModules: Number(env.MAX_MODULES) || 12,
+    autoMarkComplete: /^(1|true|yes|on)$/i.test(env.AUTO_MARK_COMPLETE?.trim() ?? ''),
+    autoCapture: !/^(0|false|no|off)$/i.test(env.AUTO_CAPTURE?.trim() ?? ''),
   };
 }
 

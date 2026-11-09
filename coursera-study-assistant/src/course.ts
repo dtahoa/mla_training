@@ -38,6 +38,15 @@ export interface RawItemRow {
   rowText: string;
   ariaLabel: string | null;
   hintText: string;
+  /** Coursera's item type from data-testid="WeekSingleItemDisplay-<typeName>" (e.g. lecture, staffGraded). */
+  typeName: string | null;
+  /** Text of the row's [data-test="rc-ItemName"] element, when present. */
+  nameText: string | null;
+  /**
+   * Coursera swaps the item-type icon for a green check when an item is done,
+   * with no text or aria for it (verified 2026-11). See scanItemRows().
+   */
+  completedIcon: boolean;
 }
 
 const VIDEO_SEGMENTS = new Set(['lecture']);
@@ -57,7 +66,11 @@ const ASSESSMENT_SEGMENTS = new Set([
   'staffGraded',
   'practice-quiz',
 ]);
-const NON_ITEM_SEGMENTS = new Set(['home', 'resources', 'forum', 'discussions', 'course-inbox', 'info', 'grades']);
+// `team/<id>` is the team page of an assignment (seen in the course timeline card),
+// not a separate study item.
+export const NON_ITEM_SEGMENTS = new Set(['home', 'resources', 'forum', 'discussions', 'course-inbox', 'info', 'grades', 'team']);
+// Coursera typeNames (from data-testid) that are always assessed.
+const GRADED_TYPE_NAMES = new Set(['exam', 'peer', 'phasedPeer', 'closedPeer', 'splitPeerReviewItem', 'staffGraded']);
 
 export function parseItemPath(pathOrUrl: string): ItemRef | null {
   let pathname: string;
@@ -84,11 +97,15 @@ export function parseItemPath(pathOrUrl: string): ItemRef | null {
  * clearly labelled "practice" is GRADED; unknown item types are OTHER. Both
  * mean "the human does it, the assistant stays out".
  */
-export function classifyItem(segment: string, typeLabel: string | null): ItemKind {
+export function classifyItem(segment: string, typeLabel: string | null, typeName: string | null = null): ItemKind {
   const label = typeLabel ?? '';
   const saysPractice = /\bpractice\b/i.test(label);
   const saysGraded = /\b(graded|peer)\b/i.test(label) && !/\bungraded\b/i.test(label);
 
+  // Coursera's own type name overrides everything when it says "assessed".
+  if (typeName && (GRADED_TYPE_NAMES.has(typeName) || (/graded/i.test(typeName) && !/^ungraded/i.test(typeName)))) {
+    return 'GRADED';
+  }
   if (VIDEO_SEGMENTS.has(segment)) return 'VIDEO';
   if (READING_SEGMENTS.has(segment)) return 'READING';
   if (ASSESSMENT_SEGMENTS.has(segment)) {
@@ -112,6 +129,8 @@ const TYPE_LABEL_PATTERNS: Array<[RegExp, string]> = [
   [label('peer[- ]graded assignment|peer review'), 'Peer-graded Assignment'],
   [label('quiz|exam'), 'Graded Assignment'],
   [label('ungraded (?:plugin|lab|app item|widget)'), 'Ungraded Plugin'],
+  [label('role play'), 'Role Play'],
+  [label('dialogue'), 'Dialogue'],
   [label('discussion prompt'), 'Discussion Prompt'],
   [label('lab|notebook'), 'Lab'],
 ];
@@ -131,7 +150,10 @@ function parseMinutes(text: string): number | null {
   return Math.round((hours ? Number(hours[1]) * 60 : 0) + (minutes ? Number(minutes[1]) : 0));
 }
 
-const STATUS_LINE = /^(completed|in progress|not started|started|locked|overdue|due\b.*|optional|passed|failed)$/i;
+// "Due" only counts as a status when a date follows ("Due, Nov 9, ..."), so a
+// title such as "Due Diligence on Claims" is kept.
+const STATUS_LINE =
+  /^(completed|in progress|not started|started|locked|overdue|optional|passed|failed|resume|start|status: .*|due,? (?:[a-z]{3,9}\.? \d|\d).*)$/i;
 
 export function detectCompleted(text: string): boolean {
   if (/\b(not completed|incomplete|not started)\b/i.test(text)) return false;
@@ -146,8 +168,11 @@ export interface ParsedRow {
   locked: boolean;
 }
 
+export type ParseInput = Pick<RawItemRow, 'anchorText' | 'rowText' | 'ariaLabel' | 'hintText'> &
+  Partial<Pick<RawItemRow, 'nameText' | 'completedIcon'>>;
+
 /** Turn the visible text of an item row into structured fields (heuristic, English UI). */
-export function parseItemRow(row: Pick<RawItemRow, 'anchorText' | 'rowText' | 'ariaLabel' | 'hintText'>): ParsedRow {
+export function parseItemRow(row: ParseInput): ParsedRow {
   const sourceText = row.rowText.trim() || row.anchorText;
   const lines = sourceText
     .split(/\r?\n/)
@@ -180,10 +205,11 @@ export function parseItemRow(row: Pick<RawItemRow, 'anchorText' | 'rowText' | 'a
   if (!typeLabel && row.ariaLabel) typeLabel = matchTypeLabel(row.ariaLabel)?.label ?? null;
 
   return {
-    title: title ?? (row.anchorText.trim() || '(untitled)'),
+    // Coursera's own title element beats any line guessing.
+    title: row.nameText?.trim() || title || row.anchorText.trim() || '(untitled)',
     typeLabel,
     minutes,
-    completed: detectCompleted(allText),
+    completed: Boolean(row.completedIcon) || detectCompleted(allText),
     locked: /\blocked\b/i.test(allText) && !/\bunlocked\b/i.test(allText),
   };
 }

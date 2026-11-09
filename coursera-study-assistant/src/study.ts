@@ -8,13 +8,15 @@
 //        ─► SAVE_CHECKPOINT ─► NEXT_ITEM ─► INSPECT_CURRENT_ITEM … ─► DONE
 //   [q] / Ctrl+C at any menu → SAVE_CHECKPOINT ─► PAUSED (resume with `npm run study`)
 //
-// The learner drives: the tool never advances without a key press, and it
-// follows whatever page the learner opens in Chrome ([f]).
+// The learner drives: the tool advances on a key press, or by itself only when
+// a video was actually played >= 90 % to its end. It follows whatever page the
+// learner opens in Chrome ([f]).
 
+import { setTimeout as sleep } from 'node:timers/promises';
 import type { Page } from 'playwright';
 import { courseUrl, type Config } from './config.ts';
 import { gotoPath, isLoggedIn, openSession, politeDelay, waitForLogin, type Session } from './browser.ts';
-import { classifyItem, itemDisplayType, parseItemPath, type CourseItem } from './course.ts';
+import { classifyItem, itemDisplayType, parseItemPath, type CourseItem, type ItemKind } from './course.ts';
 import { guardFor, type StudyAction } from './guard.ts';
 import { AuditLog, ProgressStore, pickNextItem, resumeTarget } from './store.ts';
 import { fetchOutline } from './outline.ts';
@@ -29,6 +31,7 @@ import {
 import { createLlmFromEnv, type LlmClient } from './ai.ts';
 import { itemNotesPrompt } from './study-ai.ts';
 import { createPrompt, INTERRUPTED, type Prompt } from './prompt.ts';
+import { AUTO_MARK_DELAY_MS, autoRouteReady, completeOnCoursera, detectRoute, type Route } from './complete.ts';
 
 export type StudyState =
   | 'LOGIN_CHECK'
@@ -45,7 +48,11 @@ export type StudyState =
 const ACTIONS: Record<StudyAction, { key: string; short: string; help: string }> = {
   capture: { key: 'c', short: 'capture', help: 'lưu transcript / nội dung bài vào ghi chú local' },
   ai_notes: { key: 'a', short: 'AI notes', help: 'AI tóm tắt, giải thích khái niệm, câu hỏi tự kiểm tra (cần AI_PROVIDER)' },
-  done: { key: 'd', short: 'done', help: 'mình đã học / tự hoàn thành item này → sang item tiếp theo' },
+  done: {
+    key: 'd',
+    short: 'done',
+    help: 'mình đã học / xong item này → (reading, ungraded) tool bấm "Mark as completed" trên Coursera nếu có nút → item tiếp theo',
+  },
   skip: { key: 'k', short: 'skip', help: 'bỏ qua lúc này, không đánh dấu đã học' },
   later: { key: 'l', short: 'later', help: 'để tự làm sau (đánh dấu manual pending)' },
   follow: { key: 'f', short: 'follow', help: 'cập nhật theo trang bạn đang mở trên Chrome' },
@@ -111,57 +118,191 @@ function printItem(item: CourseItem, store: ProgressStore): void {
   );
   console.log(`${decision.manualOnly ? '⛔' : '▶'} ${decision.headline}`);
   console.log(`  ${decision.hint}`);
+  if (item.kind === 'VIDEO') {
+    console.log(`  Xem hết video (≥ ${WATCHED_COVERAGE * 100}%) → tool tự đánh dấu done và mở bài tiếp, không cần bấm phím.`);
+    console.log('  Muốn capture / AI notes thì bấm c / a trước khi video hết. Enter = done ngay.');
+  }
   if (item.notesPath) console.log(`  ghi chú: ${item.notesPath}`);
 }
 
-async function chooseAction(prompt: Prompt, actions: StudyAction[], manualOnly: boolean): Promise<StudyAction> {
+/**
+ * What Enter with no input does on an item. Videos and OTHER items (plugin,
+ * role play, discussion…) → "done"; confirmDone still asks afterwards (video
+ * < 90 % coverage, manual "đã tự làm?"). Practice / graded items have no
+ * default, so a stray Enter never starts marking an assessment as done.
+ */
+export function defaultActionFor(kind: ItemKind): StudyAction | null {
+  return kind === 'VIDEO' || kind === 'OTHER' ? 'done' : null;
+}
+
+const NEVER = new Promise<never>(() => undefined);
+
+/**
+ * Show the menu and wait for a key. If `auto` is given, it races the keyboard:
+ * when it resolves to an allowed action first, the pending question is
+ * cancelled and that action is returned (used for "video finished → done").
+ */
+export async function chooseAction(
+  prompt: Prompt,
+  actions: StudyAction[],
+  manualOnly: boolean,
+  defaultAction: StudyAction | null = null,
+  auto?: (signal: AbortSignal) => Promise<StudyAction | null>,
+): Promise<StudyAction> {
+  const fallback = defaultAction && actions.includes(defaultAction) ? defaultAction : null;
   const label = (action: StudyAction) =>
-    action === 'done' && manualOnly ? 'done (đã tự làm)' : ACTIONS[action].short;
+    `${action === 'done' && manualOnly ? 'done (đã tự làm)' : ACTIONS[action].short}${action === fallback ? ' (Enter)' : ''}`;
   const menu = actions.map((action) => `[${ACTIONS[action].key}] ${label(action)}`).join('  ');
   for (;;) {
-    const input = (await prompt.ask(`\n${menu}  [?] help\n> `)).toLowerCase();
+    const stop = new AbortController();
+    let input: string;
+    try {
+      const fired = auto
+        ? auto(stop.signal)
+            .then((action) => (action && actions.includes(action) ? action : NEVER))
+            .catch(() => NEVER)
+        : NEVER;
+      const result = await Promise.race([
+        prompt.ask(`\n${menu}  [?] help\n> `, stop.signal).then((text) => ({ text })),
+        fired.then((action) => ({ action })),
+      ]);
+      if ('action' in result) return result.action;
+      input = result.text.toLowerCase();
+    } finally {
+      stop.abort(); // cancel whichever side lost the race
+    }
     if (input === INTERRUPTED) return 'quit';
     if (input === '?' || input === 'h') {
       for (const action of actions) console.log(`  [${ACTIONS[action].key}] ${ACTIONS[action].help}`);
+      if (fallback) console.log(`  [Enter] = ${ACTIONS[fallback].short}`);
       continue;
     }
+    if (!input && fallback) return fallback;
     const chosen = actions.find((action) => ACTIONS[action].key === input);
     if (chosen) return chosen;
     if (input) console.log('Phím không hợp lệ cho item này.');
   }
 }
 
-/** Fraction of the video played in this page session, or null when it cannot be measured. */
-async function videoCoverage(page: Page): Promise<number | null> {
+/** Share of a video that must actually be played (not skipped) to count as watched. */
+export const WATCHED_COVERAGE = 0.9;
+
+interface VideoState {
+  /** Fraction of the video played in this page session (seeking does not count). */
+  coverage: number;
+  /** Playback is at (or within 1.5 s of) the end. */
+  atEnd: boolean;
+}
+
+async function readVideoState(page: Page): Promise<VideoState | null> {
   return page
     .evaluate(() => {
       const video = document.querySelector('video');
       if (!video || !Number.isFinite(video.duration) || video.duration <= 0) return null;
       let played = 0;
       for (let i = 0; i < video.played.length; i++) played += video.played.end(i) - video.played.start(i);
-      return Math.min(1, played / video.duration);
+      return { coverage: Math.min(1, played / video.duration), atEnd: video.ended || video.currentTime >= video.duration - 1.5 };
     })
     .catch(() => null);
 }
 
-async function confirmDone(page: Page, item: CourseItem, prompt: Prompt): Promise<boolean> {
+/**
+ * Fraction of the video played in this page session, or null when it cannot
+ * be measured — including when Chrome has already moved on to another item
+ * (Coursera can auto-advance at the end of a video).
+ */
+async function videoCoverage(page: Page, item: CourseItem): Promise<number | null> {
+  if (parseItemPath(page.url())?.id !== item.id) return null;
+  return (await readVideoState(page))?.coverage ?? null;
+}
+
+const untilAborted = (signal: AbortSignal) =>
+  new Promise<void>((resolve) => {
+    if (signal.aborted) resolve();
+    else signal.addEventListener('abort', () => resolve(), { once: true });
+  });
+
+/**
+ * Resolves 'done' once you have played >= 90 % of this video and reached its
+ * end. Skipping to the end does not count (coverage is what was played). If
+ * Coursera auto-advances, the last reading taken on the video page decides.
+ * Otherwise it stays pending until `signal` aborts, then resolves null.
+ */
+export async function videoFinished(page: Page, item: CourseItem, signal: AbortSignal, pollMs = 1000): Promise<'done' | null> {
+  let lastCoverage = 0;
+  while (!signal.aborted) {
+    if (parseItemPath(page.url())?.id !== item.id) {
+      if (lastCoverage >= WATCHED_COVERAGE) return 'done';
+      break; // you navigated away mid-video: just wait for a key
+    }
+    const state = await readVideoState(page);
+    if (state) {
+      lastCoverage = state.coverage;
+      if (state.atEnd && state.coverage >= WATCHED_COVERAGE) return 'done';
+    }
+    await sleep(pollMs, undefined, { signal }).catch(() => undefined);
+  }
+  await untilAborted(signal);
+  return null;
+}
+
+export async function confirmDone(page: Page, item: CourseItem, prompt: Prompt): Promise<boolean> {
   const decision = guardFor(item.kind);
   if (decision.manualOnly) {
-    return prompt.confirm('Bạn đã tự hoàn thành bài này trên Coursera?');
+    // You already pressed [d] on purpose, so Enter confirms. When the page
+    // offers a way to finish it on Coursera (ungraded items only), say what the
+    // tool is about to do; otherwise this is a local status only.
+    const route = decision.allowMarkComplete ? await detectRoute(page, item) : null;
+    return prompt.confirm(route ? ROUTE_QUESTION[route] : 'Bạn đã tự hoàn thành bài này trên Coursera?', true);
   }
   if (item.kind === 'VIDEO') {
-    const coverage = await videoCoverage(page);
-    if (coverage !== null && coverage < 0.9) {
-      return prompt.confirm(`Phiên này mới xem khoảng ${Math.round(coverage * 100)}% video. Vẫn đánh dấu đã học?`);
-    }
-  }
-  if (item.kind === 'READING') {
-    const markButton = page.getByRole('button', { name: /mark as completed/i });
-    if (await markButton.count().catch(() => 0)) {
-      console.log('ℹ Coursera có nút "Mark as completed" — hãy tự bấm trên Chrome nếu bạn đã đọc xong (tool không bấm hộ).');
+    const coverage = await videoCoverage(page, item);
+    if (coverage !== null && coverage < WATCHED_COVERAGE) {
+      // Coverage only counts this page session (Coursera resumes where you
+      // left off), so Enter = yes; type n to stay on the video.
+      return prompt.confirm(`Phiên này mới xem khoảng ${Math.round(coverage * 100)}% video. Vẫn đánh dấu đã học?`, true);
     }
   }
   return true;
+}
+
+const ROUTE_QUESTION: Record<Route, string> = {
+  mark: 'Bấm "Mark as completed" trên Coursera cho bài này rồi sang bài tiếp?',
+  dialogue: 'Start rồi End hoạt động trên Coursera (text chat, chọn "I don\'t have time…") rồi sang bài tiếp?',
+};
+
+const ROUTE_DONE: Record<Route, string> = {
+  mark: '✓ Đã bấm "Mark as completed" trên Coursera.',
+  dialogue: '✓ Đã Start → End hoạt động ("I don\'t have time…") trên Coursera.',
+};
+
+/**
+ * After a confirmed [d]: finish the item on Coursera ("Mark as completed" or
+ * Start → End Dialogue) where the guard allows it. Returns false to stay on
+ * the item (it did not go through).
+ */
+async function markOnCoursera(page: Page, item: CourseItem, store: ProgressStore, audit: AuditLog): Promise<boolean> {
+  if (!guardFor(item.kind).allowMarkComplete) return true;
+  const { route, outcome } = await completeOnCoursera(page, item);
+  await audit.log('mark_completed', { item: item.id, kind: item.kind, route, ...outcome });
+  switch (outcome.status) {
+    case 'clicked':
+      store.update(item.id, { courseraCompleted: true });
+      console.log(route ? ROUTE_DONE[route] : '✓ Xong trên Coursera.');
+      return true;
+    case 'not_found':
+      console.log('ℹ Trang không có "Mark as completed" hay "Start Dialogue/Role Play/Activity" (Coursera có thể đã tính completed) → chỉ đánh dấu local.');
+      return true;
+    case 'blocked':
+      console.log(`ℹ ${outcome.reason} Không bấm gì trên Coursera, chỉ đánh dấu local.`);
+      return true;
+    case 'failed':
+      console.log(`⚠ ${outcome.reason}. Tự làm nốt trên Chrome rồi bấm [d] lại, hoặc [l] để làm sau.`);
+      if (outcome.controls?.length) {
+        console.log('  Tên các nút trên trang đã được ghi vào audit.jsonl (dòng mark_completed). Gửi dòng đó để chỉnh selector.');
+      }
+      return false;
+  }
 }
 
 export async function runStudy(config: Config, options: { forceSync?: boolean } = {}): Promise<void> {
@@ -174,8 +315,13 @@ export async function runStudy(config: Config, options: { forceSync?: boolean } 
     console.log(`⚠ AI tắt: ${(error as Error).message}`);
   }
 
-  console.log('Coursera Study Assistant — human-in-the-loop. Không tự làm/nộp bài kiểm tra, không tự đánh dấu hoàn thành.');
+  console.log(
+    'Coursera Study Assistant — human-in-the-loop. Không tự làm/nộp bài kiểm tra; "Mark as completed" chỉ bấm trên reading / ungraded item.',
+  );
   console.log(`AI study helper: ${llm ? `${llm.provider}/${llm.model}` : 'tắt (xem .env.example)'}`);
+  if (config.autoMarkComplete) {
+    console.log('AUTO_MARK_COMPLETE: bật — reading / ungraded item có "Mark as completed" hoặc "Start Dialogue/Role Play/Activity" sẽ được tự làm xong rồi mở bài tiếp.');
+  }
 
   const session = await openSession(config, courseUrl(config));
   const prompt = createPrompt();
@@ -185,6 +331,10 @@ export async function runStudy(config: Config, options: { forceSync?: boolean } 
   let state = 'LOGIN_CHECK' as StudyState;
   let current: CourseItem | null = null;
   let afterCheckpoint: 'NEXT_ITEM' | 'PAUSED' = 'NEXT_ITEM';
+  // AUTO_MARK_COMPLETE fires at most once per item, so a click Coursera does
+  // not confirm leaves you at the menu instead of retrying in a loop.
+  const autoTried = new Set<string>();
+  const captureTried = new Set<string>();
   const go = async (next: StudyState) => {
     await audit.log('transition', { from: state, to: next, item: current?.id ?? null });
     state = next;
@@ -248,8 +398,43 @@ export async function runStudy(config: Config, options: { forceSync?: boolean } 
             break;
           }
           const decision = guardFor(current.kind);
-          const action = await chooseAction(prompt, decision.actions, decision.manualOnly);
-          await audit.log('action', { item: current.id, kind: current.kind, action });
+          const watching = current;
+          // AUTO_CAPTURE: save each video's transcript once, as soon as it is opened.
+          if (config.autoCapture && current.kind === 'VIDEO' && !current.sourcePath && !captureTried.has(current.id)) {
+            captureTried.add(current.id);
+            await doCapture(page, current, config, store, audit, { auto: true });
+          }
+          let autoDone = false;
+          const autoMark =
+            config.autoMarkComplete && decision.allowMarkComplete && !watching.courseraCompleted && !autoTried.has(watching.id);
+          const auto =
+            watching.kind === 'VIDEO'
+              ? async (signal: AbortSignal) => {
+                  const result = await videoFinished(page, watching, signal);
+                  if (result) {
+                    autoDone = true;
+                    console.log(`\n✓ Đã xem hết video (≥ ${WATCHED_COVERAGE * 100}%) → tự đánh dấu done.`);
+                  }
+                  return result;
+                }
+              : autoMark
+                ? async (signal: AbortSignal) => {
+                    const result = await autoRouteReady(page, watching, signal);
+                    if (result) {
+                      autoDone = true;
+                      autoTried.add(watching.id);
+                      console.log('\n→ AUTO: hoàn thành bài này trên Coursera...');
+                    }
+                    return result;
+                  }
+                : undefined;
+          if (autoMark) {
+            console.log(
+              `  AUTO: trang có "Mark as completed" / "Start Dialogue/Activity" thì tool tự làm sau ${AUTO_MARK_DELAY_MS / 1000}s rồi mở bài tiếp. Gõ phím khác (vd l, f, q) + Enter để dừng.`,
+            );
+          }
+          const action = await chooseAction(prompt, decision.actions, decision.manualOnly, defaultActionFor(current.kind), auto);
+          await audit.log('action', { item: current.id, kind: current.kind, action, auto: autoDone });
           switch (action) {
             case 'capture':
               await doCapture(page, current, config, store, audit);
@@ -258,7 +443,8 @@ export async function runStudy(config: Config, options: { forceSync?: boolean } 
               await doAiNotes(page, current, config, store, audit, llm);
               break;
             case 'done':
-              if (await confirmDone(page, current, prompt)) {
+              // An auto "done" (video watched >= 90 %, or AUTO_MARK_COMPLETE) needs no question.
+              if ((autoDone || (await confirmDone(page, current, prompt))) && (await markOnCoursera(page, current, store, audit))) {
                 store.update(current.id, { localStatus: 'studied' });
                 afterCheckpoint = 'NEXT_ITEM';
                 await go('SAVE_CHECKPOINT');
@@ -301,8 +487,11 @@ export async function runStudy(config: Config, options: { forceSync?: boolean } 
             break;
           }
           current = next;
-          await politeDelay(800, 1600);
-          await gotoPath(page, next.urlPath);
+          // Coursera may already have auto-advanced to exactly this item.
+          if (parseItemPath(page.url())?.id !== next.id) {
+            await politeDelay(800, 1600);
+            await gotoPath(page, next.urlPath);
+          }
           await go('INSPECT_CURRENT_ITEM');
           break;
         }
@@ -314,6 +503,8 @@ export async function runStudy(config: Config, options: { forceSync?: boolean } 
       const pending = items.filter((i) => i.localStatus === 'manual_pending').length;
       const locked = items.filter((i) => i.locked && !i.courseraCompleted).length;
       console.log(`\n🎉 Không còn item mở. Manual pending: ${pending}, locked: ${locked}. Xem \`npm run status\`.`);
+      const captured = items.filter((i) => i.sourcePath).length;
+      if (captured) console.log(`📚 Đã có transcript của ${captured} bài. Chạy \`npm run summary\` để AI tóm tắt kiến thức theo module + cả course.`);
     } else {
       console.log('\n⏸ Đã lưu checkpoint. Chạy `npm run study` để học tiếp. Chrome vẫn mở và giữ đăng nhập.');
     }
@@ -330,25 +521,45 @@ export async function runStudy(config: Config, options: { forceSync?: boolean } 
   }
 }
 
-async function doCapture(page: Page, item: CourseItem, config: Config, store: ProgressStore, audit: AuditLog): Promise<boolean> {
-  try {
-    const result = await captureFromPage(page, item);
-    const sourcePath = await saveSource(config, item, result);
-    const notesPath = await ensureNotesFile(config, item, moduleTitle(store, item));
-    store.update(item.id, { sourcePath, notesPath });
-    await store.save();
-    await audit.log('capture', { item: item.id, kind: item.kind, method: result.method, chars: result.text.length });
-    console.log(`✓ Đã lưu ${result.text.length} ký tự (${result.method})`);
-    console.log(`  nguồn:   ${sourcePath}\n  ghi chú: ${notesPath}`);
-    return true;
-  } catch (error) {
-    if (error instanceof GuardBlockedError) {
-      await audit.log('guard_block', { item: item.id, kind: item.kind, action: 'capture' });
-      console.log(`⛔ ${error.message}`);
-    } else {
-      console.log(`⚠ ${(error as Error).message}`);
+/**
+ * Capture the item's transcript / text into local notes. `auto` (AUTO_CAPTURE
+ * on a video you just opened) retries while the player loads its captions and
+ * prints a single line.
+ */
+async function doCapture(
+  page: Page,
+  item: CourseItem,
+  config: Config,
+  store: ProgressStore,
+  audit: AuditLog,
+  { auto = false } = {},
+): Promise<boolean> {
+  const attempts = auto ? 4 : 1;
+  const tag = auto ? '📝 Auto capture: ' : '';
+  for (let attempt = 1; ; attempt++) {
+    try {
+      const result = await captureFromPage(page, item);
+      const sourcePath = await saveSource(config, item, result);
+      const notesPath = await ensureNotesFile(config, item, moduleTitle(store, item));
+      store.update(item.id, { sourcePath, notesPath });
+      await store.save();
+      await audit.log('capture', { item: item.id, kind: item.kind, method: result.method, chars: result.text.length, auto });
+      console.log(`${auto ? tag : '✓ '}Đã lưu ${result.text.length} ký tự transcript (${result.method})`);
+      if (!auto) console.log(`  nguồn:   ${sourcePath}\n  ghi chú: ${notesPath}`);
+      return true;
+    } catch (error) {
+      if (error instanceof GuardBlockedError) {
+        await audit.log('guard_block', { item: item.id, kind: item.kind, action: 'capture' });
+        if (!auto) console.log(`⛔ ${error.message}`);
+        return false;
+      }
+      if (attempt < attempts) {
+        await sleep(2000);
+        continue;
+      }
+      console.log(`⚠ ${tag}${(error as Error).message}`);
+      return false;
     }
-    return false;
   }
 }
 

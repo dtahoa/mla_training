@@ -16,6 +16,8 @@
     "status": "node src/cli.ts status",
     "quiz": "node src/cli.ts quiz",
     "ask": "node src/cli.ts ask",
+    "summary": "node src/cli.ts summary",
+    "backfill": "node src/cli.ts backfill",
     "test": "node --test \"test/**/*.test.ts\"",
     "typecheck": "tsc --noEmit"
   },

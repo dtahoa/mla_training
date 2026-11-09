@@ -77,6 +77,58 @@ export function askPrompt(sources: StudySource[], question: string, language: st
   };
 }
 
+// ---------- knowledge summary (npm run summary) ----------
+
+export interface ModuleSummary {
+  module: number;
+  title: string | null;
+  markdown: string;
+}
+
+/** Sources grouped by module, modules ascending; item order inside a module is kept. */
+export function groupByModule(sources: StudySource[]): Array<[number, StudySource[]]> {
+  const groups = new Map<number, StudySource[]>();
+  for (const source of sources) groups.set(source.module, [...(groups.get(source.module) ?? []), source]);
+  return [...groups.entries()].sort(([a], [b]) => a - b);
+}
+
+export function moduleSummaryPrompt(module: number, title: string | null, sources: StudySource[], language: string): CompletionRequest {
+  return {
+    system: [
+      'You are a study coach. Turn the transcripts of one course module into revision notes the learner will study from after finishing the course.',
+      'Use only the provided sources; if something is unclear in them, say so instead of inventing it. Cite item titles like [M1] Title for each main point.',
+      languageRule(language),
+      'Output GitHub Markdown with exactly these sections:',
+      '## Big picture — 3-5 sentences: what this module teaches and why it matters.',
+      '## Key concepts — "**term** — explanation" bullets.',
+      '## Frameworks & processes — every model, checklist or step sequence taught, as numbered steps or a table.',
+      '## Pitfalls — mistakes the module warns about and how to avoid them.',
+      '## Apply it — 2 short scenarios from a real enterprise AI engagement showing the ideas in use.',
+      '## Review questions — 5 open questions; put suggested answers inside one <details><summary>Answers</summary> ... </details> block.',
+    ].join('\n'),
+    user: `# Module ${module}${title ? ` — ${title}` : ''}\n\n${buildContext(sources)}`,
+    maxTokens: 4000,
+  };
+}
+
+export function courseSummaryPrompt(course: string, modules: ModuleSummary[], language: string): CompletionRequest {
+  return {
+    system: [
+      'You are a study coach. Combine the per-module revision notes below into one course-level summary the learner can review in 15 minutes.',
+      'Use only the provided notes; do not add outside facts. Refer to modules as M1, M2, ...',
+      languageRule(language),
+      'Output GitHub Markdown with exactly these sections:',
+      '## The course in one page — the core argument of the course in 6-10 bullets.',
+      '## How the modules connect — how each module builds on the previous ones.',
+      '## Cheat sheet — a table: Framework / tool | When to use | Key steps | Module.',
+      '## Glossary — the 10-20 most important terms, one line each.',
+      '## Final review — 8 questions that mix several modules; suggested answers inside one <details><summary>Answers</summary> ... </details> block.',
+    ].join('\n'),
+    user: [`Course: ${course}`, ...modules.map((m) => `# Module ${m.module}${m.title ? ` — ${m.title}` : ''}\n${m.markdown.trim()}`)].join('\n\n'),
+    maxTokens: 5000,
+  };
+}
+
 /** Extract and validate quiz JSON from a model reply. Drops malformed questions. */
 export function parseQuiz(reply: string): QuizQuestion[] {
   const cleaned = reply.replace(/```(?:json)?/gi, '');

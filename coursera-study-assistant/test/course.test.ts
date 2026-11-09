@@ -83,6 +83,44 @@ test('parseItemRow reads completion and lock hints from icons', () => {
   assert.equal(parseItemRow(row('Practice quiz\nPractice Assignment • 3 questions')).typeLabel, 'Practice Assignment');
 });
 
+test('parseItemRow reads the real Coursera row texts seen in the live probe', () => {
+  assert.deepEqual(parseItemRow(row('Engage the Sponsor\nRole Play • 15 min')), {
+    title: 'Engage the Sponsor', typeLabel: 'Role Play', minutes: 15, completed: false, locked: false,
+  });
+  assert.equal(parseItemRow(row('The Ask Underneath the Ask\nDialogue • 15 min')).typeLabel, 'Dialogue');
+  assert.equal(parseItemRow(row('Skill Practice: Clean the Ask\nUngraded Plugin • 10 min')).typeLabel, 'Ungraded Plugin');
+  const graded = parseItemRow(
+    row('What is Transformation Advisory?\nGraded Assignment • Started • Grade: -- •\nStatus: Due, Nov 9, 11:59 PM PST\nDue, Nov 9, 11:59 PM PST\nResume'),
+  );
+  assert.deepEqual(graded, { title: 'What is Transformation Advisory?', typeLabel: 'Graded Assignment', minutes: null, completed: false, locked: false });
+});
+
+test('a title starting with "Due" is not mistaken for a due-date status line', () => {
+  const parsed = parseItemRow(
+    row('Due Diligence on Claims, Vendors, and Signals\nGraded Assignment • 30 min • Grade: -- •\nStatus: Due, Nov 25, 11:59 PM PST\nDue, Nov 25, 11:59 PM PST'),
+  );
+  assert.equal(parsed.title, 'Due Diligence on Claims, Vendors, and Signals');
+  assert.equal(parsed.minutes, 30);
+});
+
+test('rc-ItemName text and the completed icon take precedence over text heuristics', () => {
+  const parsed = parseItemRow({ ...row('Status: Due, Nov 9\nVideo • 2h 30m'), nameText: 'Real title', completedIcon: true });
+  assert.deepEqual(parsed, { title: 'Real title', typeLabel: 'Video', minutes: 150, completed: true, locked: false });
+  assert.equal(parseItemRow({ ...row('X\nVideo • 1 min'), completedIcon: false }).completed, false);
+});
+
+test('Coursera typeName from data-testid forces GRADED regardless of label', () => {
+  assert.equal(classifyItem('assignment-submission', 'Practice Assignment', 'staffGraded'), 'GRADED');
+  assert.equal(classifyItem('somethingNew', null, 'gradedLti'), 'GRADED');
+  assert.equal(classifyItem('ungradedWidget', 'Ungraded Plugin', 'ungradedWidget'), 'OTHER');
+  assert.equal(classifyItem('coach', 'Role Play', 'coach'), 'OTHER');
+  assert.equal(classifyItem('lecture', 'Video', 'lecture'), 'VIDEO');
+});
+
+test('team/ pages are not study items', () => {
+  assert.equal(parseItemPath('/learn/the-ai-transformation-advisor/team/LhWxx/what-is-transformation-advisory'), null);
+});
+
 test('detectCompleted rejects negations', () => {
   assert.equal(detectCompleted('Status: incomplete'), false);
   assert.equal(detectCompleted('Not started'), false);

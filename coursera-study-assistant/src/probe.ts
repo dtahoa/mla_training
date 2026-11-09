@@ -27,6 +27,10 @@ interface PageInspection {
 
 const truncate = (text: string | null, max = 300) => (text ? text.replace(/\s+/g, ' ').trim().slice(0, max) : text);
 
+async function pauseVideos(page: Page): Promise<void> {
+  await page.evaluate(() => document.querySelectorAll('video').forEach((video) => video.pause())).catch(() => undefined);
+}
+
 async function inspectItemPage(page: Page, item: CourseItem): Promise<PageInspection> {
   const count = (locator: ReturnType<Page['locator']>) => locator.count().catch(() => -1);
   const dom = await page.evaluate(() => ({
@@ -74,9 +78,15 @@ export async function runProbe(config: Config, options: { screenshots?: boolean 
       finalPath: scan.finalPath,
       scope: scan.scope,
       moduleTitle: scan.moduleTitle,
+      headings: scan.headings,
+      moduleNumbers: scan.moduleNumbers,
       itemLinks: scan.rows.length,
+      typeNames: [...new Set(scan.rows.map((row) => row.typeName))],
       sampleRows: scan.rows.slice(0, 4).map((row) => ({
         path: row.path,
+        typeName: row.typeName,
+        nameText: row.nameText,
+        completedIcon: row.completedIcon,
         anchorText: truncate(row.anchorText),
         rowText: truncate(row.rowText),
         ariaLabel: truncate(row.ariaLabel),
@@ -107,9 +117,11 @@ export async function runProbe(config: Config, options: { screenshots?: boolean 
     if (outline.items.length > 0 && outline.items.every((i) => !i.typeLabel)) {
       blockers.push('Không parse được type label (Video/Reading/...) → xem sampleRows để chỉnh parseItemRow().');
     }
-    if (outline.items.some((i) => i.kind === 'OTHER')) {
-      notes.push('Có item loại OTHER (segment chưa biết) → assistant coi là manual. Kiểm tra cột segment.');
+    const otherSegments = [...new Set(outline.items.filter((i) => i.kind === 'OTHER').map((i) => i.segment))];
+    if (otherSegments.length) {
+      notes.push(`Item OTHER (manual — plugin/role play/dialogue...) theo segment: ${otherSegments.join(', ')}.`);
     }
+    report.completedCount = outline.items.filter((i) => i.courseraCompleted).length;
     if (outline.items.length > 0 && !outline.items.some((i) => i.courseraCompleted)) {
       notes.push('Không phát hiện item nào "completed". Đúng nếu bạn chưa hoàn thành item nào; nếu không thì cần chỉnh detectCompleted().');
     }
@@ -123,7 +135,12 @@ export async function runProbe(config: Config, options: { screenshots?: boolean 
       }
       await politeDelay();
       await gotoPath(page, sample.urlPath);
-      await page.waitForTimeout(4000); // let the SPA and player render
+      // The probe must not add watch progress you did not make: pause any
+      // autoplaying video as soon as it exists, and again after rendering.
+      await page.waitForSelector('video', { timeout: 15_000 }).catch(() => undefined);
+      await pauseVideos(page);
+      await page.waitForTimeout(3000); // let the SPA and player render
+      await pauseVideos(page);
       const item: CourseItem = { ...sample, localStatus: 'new', sourcePath: null, notesPath: null };
       const inspection = await inspectItemPage(page, item);
       report[kind === 'VIDEO' ? 'videoPage' : 'readingPage'] = inspection;

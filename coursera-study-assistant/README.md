@@ -12,7 +12,8 @@ AI tóm tắt + giải thích, quiz luyện tập từ ghi chú. Tool **không**
 |---|---|
 | Đọc, trả lời, điền hay nộp practice/graded quiz, assignment, exam, peer review | `src/guard.ts` + `assertCaptureAllowed()` trong `src/capture.ts` |
 | Gửi nội dung assessment tới AI API (vì không đọc nên không thể gửi) | `guardFor(kind).allowAi` |
-| Tự bấm "Mark as completed" hoặc tua/giả lập xem video | không có code nào click hai thứ đó |
+| Tua/giả lập xem video | không có code nào làm việc đó |
+| Hoàn thành bài trên Coursera ("Mark as completed", Start/End Dialogue) với video / practice / graded item, hoặc khi bạn chưa nhấn `d` mà cũng chưa bật `AUTO_MARK_COMPLETE`; gõ bất cứ gì vào dialogue | `allowMarkComplete` trong `src/guard.ts` + `src/complete.ts` (kiểm tra lại URL trang ngay trước khi bấm) |
 | Nhập/lưu mật khẩu, bypass CAPTCHA/MFA | bạn tự login trong Chrome; tool chỉ kiểm tra cookie `CAUTH` có tồn tại |
 | Commit session/cookie/nội dung khóa học | toàn bộ nằm trong `.data/` (đã gitignore) |
 
@@ -53,7 +54,12 @@ npm run study     # 3. Phiên học có checkpoint; Ctrl+C hoặc [q] để tạ
 npm run status    #    Tiến độ theo module (offline)
 npm run quiz      # 4. Quiz luyện tập từ ghi chú đã capture   (-- --module 2 | --module all, --count 5)
 npm run ask -- "Vendor due diligence khác technical evaluation thế nào?"
+npm run backfill  # 5. Lấy transcript các video đã học trước đó (tab nền) để summary đủ cả course (-- --module 2)
+npm run summary   # 6. Học xong: AI tóm tắt kiến thức theo module + cả course (-- --module 2)
 ```
+
+Mọi lệnh nhận thêm `-- --course <slug>` để chạy cho course khác mà không sửa `.env`, ví dụ
+`npm run backfill -- --course assess-ai-readiness` rồi `npm run summary -- --course assess-ai-readiness`.
 
 **Bước 2 quan trọng:** selector được viết dựa trên URL pattern và ảnh chụp màn hình, chưa chạy trên tài khoản
 đã login. Sau khi chạy `probe`, hãy gửi file `probe-*.md` (và `probe-*.json`) để chỉnh selector. Report không chứa
@@ -66,11 +72,52 @@ Thêm `-- --screenshots` nếu muốn có ảnh trang video/reading (ảnh có t
 |---|---|---|
 | `c` | capture transcript / nội dung → `.data/.../sources` + file ghi chú | — (guard chặn) |
 | `a` | AI notes: tóm tắt, khái niệm chính, ví dụ áp dụng, câu hỏi tự kiểm tra | — (guard chặn) |
-| `d` | đã học → item tiếp theo (cảnh báo nếu video mới xem < 90%) | "đã tự làm trên Coursera?" → item tiếp theo |
+| `d` | đã học → item tiếp theo (reading: tool bấm "Mark as completed" nếu có nút). **Video: Enter không gõ gì = `d`.** Nếu phiên này mới xem < 90% video thì hỏi lại "(Y/n)", **Enter = có** | "đã tự làm trên Coursera? (Y/n)": **Enter = có** → item tiếp theo. **Other: Enter không gõ gì = `d`**, và tool hoàn thành bài trên Coursera nếu trang có "Mark as completed" hoặc "Start Dialogue/Role Play/Activity" |
 | `k` / `l` | `k` bỏ qua tạm | `l` để tự làm sau (hiện trong `status`) |
 | `f` | đọc lại trang bạn đang mở trên Chrome (tự điều hướng thoải mái) | |
 | `s` | đồng bộ outline + trạng thái completed từ Coursera (tab nền) | |
 | `q` | tạm dừng, lưu checkpoint | |
+
+**Video tự chuyển bài:** khi bạn đã phát ≥ 90% video và xem tới cuối, tool tự chọn `d` và mở item tiếp theo, không cần
+bấm phím. Tool chỉ đọc trạng thái của thẻ `<video>` (đã phát bao nhiêu); kéo thanh tua tới cuối không được tính. Nếu Coursera
+tự mở video kế tiếp, tool tính video trước là đã xem khi lần đo cuối ≥ 90%. Muốn capture hay AI notes thì bấm `c` hoặc `a` trước
+khi video hết. Video Coursera tự phát tiếp từ chỗ bạn dừng lần trước thì phiên này không đo đủ 90%: bấm Enter hai lần
+(câu hỏi "vẫn đánh dấu đã học?" mặc định là có; gõ `n` nếu muốn ở lại xem tiếp).
+
+Item OTHER (plugin, role play, dialogue, discussion): Enter trống ở menu = `d`, rồi Enter ở câu xác nhận = có.
+
+**Hoàn thành trên Coursera:** với reading và item OTHER (ungraded), sau khi bạn bấm `d`, tool hoàn thành bài trên Coursera
+theo một trong hai cách, tùy trang có gì:
+
+- **"Mark as completed"** (tìm cả trong khung plugin): tool bấm, chờ Coursera xác nhận rồi mở bài tiếp.
+- **"Start Dialogue" / "Start Role Play" / "Start Activity"**: tool bấm Start. Trang mới (cùng tab hoặc tab mới) hỏi cách tham gia thì
+  tool chọn **"Use text chat"** (không bao giờ chọn voice). Tiếp theo tool chờ nút **End** ("End Dialogue" / "End Role Play"…), bấm End,
+  trong popup chọn lựa chọn bắt đầu bằng **"I don't have time…"** (dropdown, radio hoặc nút), bấm xác nhận nếu có ("Submit", "End"…),
+  rồi đóng tab nó đã mở. Popup không có lựa chọn đó (chờ tối đa 5 giây) thì tool bấm nút **Yes / Confirm / End / Submit** để đóng
+  popup; không bao giờ bấm No / Cancel / Close. Tool không gõ gì vào dialogue.
+
+Trang không có cả hai thì tool chỉ đánh dấu local. Một bước không thành thì tool ở lại bài đó, và ghi tên các nút nó thấy trên trang
+vào `audit.jsonl` (dòng `mark_completed`) để chỉnh selector. Tool không bao giờ làm việc này trên video, practice hay graded.
+
+**Tự động hoàn toàn:** đặt `AUTO_MARK_COMPLETE=1` trong `.env`. Khi đó, trên reading hoặc item ungraded có một trong hai nút trên,
+tool đếm 3 giây rồi tự làm và mở bài tiếp, không cần nhấn phím. Trong 3 giây đó, gõ phím khác (`l`, `f`, `q`) + Enter để dừng.
+Các bài liền nhau sẽ được làm lần lượt. Tool dừng lại chờ bạn ở video (tự qua khi xem xong ≥ 90%), ở bài graded, và ở bài không
+có nút nào. Mỗi bài chỉ tự làm một lần: nếu không thành, tool để bạn xử lý chứ không lặp lại. Bài Coursera đã tính completed thì bỏ qua.
+Mặc định tắt, nên máy nào không đặt biến này thì vẫn chạy như cũ.
+
+Item practice / graded không có phím mặc định: Enter trống ở menu sẽ không làm gì, để một lần Enter lỡ tay không đánh dấu
+bài kiểm tra là xong. Với hai loại này, `d` chỉ là trạng thái local; tool không nộp hay bấm gì trên Coursera.
+
+**Transcript video + tóm tắt kiến thức:** mỗi khi mở một video, tool tự lưu transcript (lấy từ captions, hoặc mở panel Transcript)
+vào `.data/.../sources` và tạo file ghi chú cho bài đó (tắt bằng `AUTO_CAPTURE=0`). Học xong, chạy `npm run summary`: AI tóm tắt
+từng module vào `notes/module-NN/00-module-summary.md` (big picture, khái niệm, framework, pitfalls, ví dụ, câu hỏi ôn tập), rồi
+tổng hợp cả course vào `notes/00-course-summary.md` (cheat sheet, glossary, câu hỏi ôn tập tổng hợp). `-- --module 2` chỉ tóm tắt
+một module. Chạy lại sẽ ghi đè hai loại file summary này; file ghi chú riêng của bạn không bị đụng tới.
+
+**Backfill cho video đã học trước đó:** `npm run backfill` mở từng video chưa có transcript trong một tab nền (nghỉ 1.5–3.5 s
+giữa các trang như `sync`), lấy transcript rồi chuyển bài. Video trong tab đó bị tắt tiếng và dừng ngay khi định phát, nên không
+có gì được phát và không ghi tiến độ xem. Tool lưu sau mỗi video, Ctrl+C không mất gì, chạy lại sẽ làm tiếp phần còn thiếu.
+Không chạy cùng lúc với `npm run study` (hai lệnh cùng ghi `progress.json`).
 
 Ghi chú ở dạng `.data/courses/<slug>/notes/module-01/02-<title>.md`. Phần `## Ghi chú của mình` là của bạn,
 còn khối AI nằm giữa `<!-- ai-notes:start/end -->` và sẽ được thay khi bạn tạo lại AI notes.
@@ -92,7 +139,7 @@ Dữ liệu gửi đi chỉ gồm text bạn đã capture (transcript/reading) v
 ## Kiểm thử
 
 ```powershell
-npm test          # 36 test: unit + integration với Chrome headless trên trang fixture (không gọi mạng)
+npm test          # 58 test: unit + integration với Chrome headless trên trang fixture (không gọi mạng)
 npm run typecheck
 ```
 
@@ -101,10 +148,21 @@ DOM thật của Coursera khớp; việc đó là của `npm run probe`.
 
 ## Trạng thái PoC
 
-- ✅ Đã verify: spawn Chrome + attach CDP, nhận diện trạng thái chưa login trên coursera.org thật, toàn bộ state machine
-  `study` (E2E với fixture: guard, checkpoint/resume, status), capture transcript/reading, AI client (server giả).
-- ⏳ Chưa verify (cần tài khoản của bạn): selector trang module sau login (type label, completed, locked), transcript
-  thật (`<track>` hoặc panel), nội dung reading. Chạy `npm run probe` để kiểm tra.
+Đã verify trên course thật (2026-11-06, tài khoản đã login):
+
+- Outline: 5 module / 89 item, title module và item đúng. Mỗi item là
+  `li[data-testid="WeekSingleItemDisplay-<typeName>"]`, title nằm ở `[data-test="rc-ItemName"]`, danh sách render
+  sau DOMContentLoaded 3–8s.
+- Loại item của course này: `lecture` (Video, 43), `ungradedWidget` (Skill Practice plugin), `coach` (Role Play /
+  Dialogue), `staffGraded` (Graded Assignment, 1 bài/module). Không có reading. Plugin/coach/graded là manual.
+- Completed: Coursera **thay icon loại item bằng dấu tick xanh** và không có text/aria. Tool nhận diện bằng
+  "SVG không có nền tròn + màu xanh lá". Đã quan sát được icon đổi ngay khi một graded assignment được nộp.
+- Locked: `aria-label="<title>, Locked"`.
+- Transcript video: `<track kind="captions" srclang="en">` → `/api/subtitleAssetProxy.v1/...` (WebVTT).
+
+Đã verify bằng test/fixture: state machine `study` (guard, checkpoint/resume), AI client (server giả).
+
+Chưa verify: chưa chạy `npm run study` trọn một phiên trên course thật, và AI notes/quiz với API key thật.
 
 ## Lưu ý chính sách
 

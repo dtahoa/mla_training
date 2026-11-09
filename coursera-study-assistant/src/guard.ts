@@ -4,7 +4,10 @@
 // Hard rules (not configurable):
 //   - never answers, fills in or submits any quiz / assignment / exam
 //   - never reads assessment content (so it can never reach an AI API)
-//   - never clicks "Mark as completed" or fakes video progress
+//   - never fakes video progress
+//   - finishes an item on Coursera ("Mark as completed", or Start → End
+//     Dialogue) only where allowMarkComplete is true, after you press [d] or
+//     with AUTO_MARK_COMPLETE=1 (see complete.ts); never types into a dialogue
 
 import type { ItemKind } from './course.ts';
 
@@ -27,6 +30,12 @@ export interface GuardDecision {
   allowAi: boolean;
   /** The human must complete it themselves; the assistant only waits. */
   manualOnly: boolean;
+  /**
+   * After you press [d], may the assistant click Coursera's own "Mark as
+   * completed" button? Never for videos (they complete by watching) or for
+   * practice / graded items (they need a real submission).
+   */
+  allowMarkComplete: boolean;
   headline: string;
   hint: string;
   actions: StudyAction[];
@@ -42,6 +51,7 @@ export function guardFor(kind: ItemKind): GuardDecision {
         allowCapture: true,
         allowAi: true,
         manualOnly: false,
+        allowMarkComplete: false,
         headline: 'VIDEO → STUDY / TAKE NOTES',
         hint: 'Tự xem video trên Chrome. Có thể capture transcript để ghi chú và nhờ AI tóm tắt.',
         actions: ['capture', 'ai_notes', 'done', 'skip', ...COMMON_TAIL],
@@ -52,8 +62,9 @@ export function guardFor(kind: ItemKind): GuardDecision {
         allowCapture: true,
         allowAi: true,
         manualOnly: false,
+        allowMarkComplete: true,
         headline: 'READING → READ / SUMMARIZE',
-        hint: 'Tự đọc bài. Nếu Coursera có nút "Mark as completed", hãy tự bấm sau khi đọc xong.',
+        hint: 'Tự đọc bài. Đọc xong bấm [d]: tool bấm "Mark as completed" trên Coursera (nếu có nút) rồi mở bài tiếp.',
         actions: ['capture', 'ai_notes', 'done', 'skip', ...COMMON_TAIL],
       };
     case 'PRACTICE':
@@ -62,6 +73,7 @@ export function guardFor(kind: ItemKind): GuardDecision {
         allowCapture: false,
         allowAi: false,
         manualOnly: true,
+        allowMarkComplete: false,
         headline: 'PRACTICE → TỰ LÀM, assistant không đọc/không trả lời câu hỏi',
         hint: 'Tự làm practice quiz. Sau đó dùng `npm run quiz` để luyện thêm câu hỏi tạo từ ghi chú của bạn.',
         actions: ['done', 'later', ...COMMON_TAIL],
@@ -72,6 +84,7 @@ export function guardFor(kind: ItemKind): GuardDecision {
         allowCapture: false,
         allowAi: false,
         manualOnly: true,
+        allowMarkComplete: false,
         headline: 'ASSESSMENT → MANUAL COMPLETION',
         hint: 'Bài có chấm điểm (hoặc chưa xác định được loại). Bạn tự làm theo Honor Code; assistant dừng tại đây.',
         actions: ['done', 'later', ...COMMON_TAIL],
@@ -82,8 +95,9 @@ export function guardFor(kind: ItemKind): GuardDecision {
         allowCapture: false,
         allowAi: false,
         manualOnly: true,
+        allowMarkComplete: true,
         headline: 'OTHER → MANUAL (loại item chưa hỗ trợ)',
-        hint: 'Discussion / plugin / lab: tự thực hiện trên Coursera.',
+        hint: 'Skill Practice plugin / Role Play / Dialogue với Coach / discussion. Enter ([d]): tool bấm "Mark as completed" trên Coursera nếu trang có nút, rồi mở bài tiếp.',
         actions: ['done', 'later', ...COMMON_TAIL],
       };
   }

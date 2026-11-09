@@ -1,7 +1,7 @@
 // Offline review commands. They only use what is already on disk (progress
 // + captured sources) and never touch Coursera.
 
-import { appendFile, mkdir } from 'node:fs/promises';
+import { appendFile, mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { Config } from './config.ts';
 import { itemDisplayType } from './course.ts';
@@ -9,7 +9,16 @@ import { guardFor } from './guard.ts';
 import { ProgressStore, pickNextItem, sortItems } from './store.ts';
 import { readSourceText } from './capture.ts';
 import { createLlmFromEnv, type LlmClient } from './ai.ts';
-import { askPrompt, parseQuiz, quizPrompt, type StudySource } from './study-ai.ts';
+import {
+  askPrompt,
+  courseSummaryPrompt,
+  groupByModule,
+  moduleSummaryPrompt,
+  parseQuiz,
+  quizPrompt,
+  type ModuleSummary,
+  type StudySource,
+} from './study-ai.ts';
 import { createPrompt, INTERRUPTED } from './prompt.ts';
 
 export type ModuleFilter = number | 'all' | undefined;
@@ -121,6 +130,66 @@ export async function runQuiz(config: Config, options: { module?: ModuleFilter; 
     `${JSON.stringify({ ts: new Date().toISOString(), module, model: `${llm.provider}/${llm.model}`, score, answered: answers.length, answers })}\n`,
     'utf8',
   );
+}
+
+export function moduleSummaryFile(config: Config, module: number): string {
+  return path.join(config.notesDir, `module-${String(module).padStart(2, '0')}`, '00-module-summary.md');
+}
+
+export function courseSummaryFile(config: Config): string {
+  return path.join(config.notesDir, '00-course-summary.md');
+}
+
+/**
+ * AI knowledge summary from the transcripts you captured: one file per module,
+ * then (for the whole course) one course summary built from those. Re-running
+ * overwrites these files; your own notes files are never touched.
+ */
+export async function runSummary(config: Config, options: { module?: ModuleFilter }): Promise<void> {
+  const llm = requireLlm();
+  if (!llm) return;
+  const store = await ProgressStore.open(config.progressPath, config.courseSlug);
+  const filter = options.module ?? 'all';
+  const sources = await loadSources(config, store, filter);
+  if (sources.length === 0) {
+    console.log(
+      `Chưa có transcript cho ${filter === 'all' ? 'course' : `module ${filter}`}. Chạy \`npm run study\` (AUTO_CAPTURE tự lưu transcript khi mở video) hoặc bấm [c].`,
+    );
+    return;
+  }
+  const model = `${llm.provider}/${llm.model}`;
+  const date = new Date().toISOString().slice(0, 10);
+  const summaries: ModuleSummary[] = [];
+  for (const [module, list] of groupByModule(sources)) {
+    const title = store.data.modules.find((m) => m.number === module)?.title ?? null;
+    const chars = list.reduce((sum, s) => sum + s.text.length, 0);
+    console.log(`… M${module}${title ? ` ${title}` : ''}: tóm tắt ${list.length} bài (${chars} ký tự) bằng ${model}`);
+    try {
+      const markdown = await llm.complete(moduleSummaryPrompt(module, title, list, config.studyLanguage));
+      const file = moduleSummaryFile(config, module);
+      await writeSummary(file, `# Tóm tắt Module ${module}${title ? ` — ${title}` : ''}`, `${model}, ${date}, từ ${list.length} transcript`, markdown);
+      summaries.push({ module, title, markdown });
+      console.log(`  ✓ ${file}`);
+    } catch (error) {
+      console.log(`  ⚠ M${module}: ${(error as Error).message}`);
+    }
+  }
+  if (filter !== 'all' || summaries.length < 2) return;
+  console.log(`… tổng hợp cả course từ ${summaries.length} module`);
+  try {
+    const markdown = await llm.complete(courseSummaryPrompt(config.courseSlug, summaries, config.studyLanguage));
+    const file = courseSummaryFile(config);
+    await writeSummary(file, `# Tóm tắt course — ${config.courseSlug}`, `${model}, ${date}, từ ${summaries.length} module`, markdown);
+    console.log(`  ✓ ${file}`);
+  } catch (error) {
+    console.log(`  ⚠ course summary: ${(error as Error).message}`);
+  }
+}
+
+async function writeSummary(file: string, heading: string, meta: string, markdown: string): Promise<void> {
+  await mkdir(path.dirname(file), { recursive: true });
+  const note = `> AI summary (${meta}). Chạy lại \`npm run summary\` sẽ ghi đè file này — ghi chú riêng hãy để ở file khác.`;
+  await writeFile(file, `${heading}\n\n${note}\n\n${markdown.trim()}\n`, 'utf8');
 }
 
 export async function runAsk(config: Config, question: string, options: { module?: ModuleFilter }): Promise<void> {

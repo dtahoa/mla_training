@@ -10,6 +10,7 @@ import { loadConfig } from '../src/config.ts';
 import { fetchOutline } from '../src/outline.ts';
 import { GuardBlockedError, captureFromPage } from '../src/capture.ts';
 import type { CourseItem } from '../src/course.ts';
+import { videoFinished } from '../src/study.ts';
 
 const config = loadConfig({ ...process.env, COURSE_SLUG: 'demo' });
 const L = '/learn/demo';
@@ -20,27 +21,65 @@ const page = (body: string, script = '') =>
 const li = (href: string, title: string, meta: string, hint = '') =>
   `<li><a href="${href}">${title}</a><div>${meta}</div>${hint}</li>`;
 
+// Real Coursera row shape (from the live probe, 2026-11): the first svg in the
+// link is the item-type icon (glyph on a circle, dark) or, once the item is
+// done, a green check with no circle and no text/aria.
+const TYPE_ICON = '<svg aria-hidden="true" style="color: rgb(13, 15, 18)"><circle cx="10" cy="10" r="10"></circle><path fill="currentColor" d="M8.922 12.5"></path></svg>';
+const DONE_ICON = '<svg aria-hidden="true" style="color: rgb(25, 125, 18)"><path fill="currentColor" d="M8.938 10.875"></path></svg>';
+const row = (typeName: string, href: string, title: string, meta: string, done = false) =>
+  `<li data-testid="WeekSingleItemDisplay-${typeName}"><a href="${href}" aria-label="${title}">${done ? DONE_ICON : TYPE_ICON}` +
+  `<div><span data-test="rc-ItemName">${title}</span><div><span>${meta}</span></div></div></a></li>`;
+
+function fakePlayer({ seek }: { seek: boolean }): string {
+  return `
+    const v = document.querySelector('video');
+    let t = ${seek ? 60 : 0}, playedTo = ${seek ? 5 : 0};
+    Object.defineProperty(v, 'duration', { get: () => 60 });
+    Object.defineProperty(v, 'currentTime', { get: () => t });
+    Object.defineProperty(v, 'ended', { get: () => t >= 60 });
+    Object.defineProperty(v, 'played', { get: () => ({ length: 1, start: () => 0, end: () => playedTo }) });
+    ${seek ? '' : 'setInterval(() => { t = Math.min(60, t + 10); playedTo = t; }, 50);'}`;
+}
+
+const MODULE_1_LIST = [
+  '<h2>What AI Transformation Advisory Is</h2><nav><ul>',
+  row('lecture', `${L}/lecture/v1/intro`, 'Problem: The decisive work nobody scoped', 'Video • 2 min', true),
+  row('ungradedWidget', `${L}/ungradedWidget/w1/skill-practice-clean-the-ask`, 'Skill Practice: Clean the Ask', 'Ungraded Plugin • 10 min'),
+  row('coach', `${L}/coach/c1/engage-the-sponsor`, 'Engage the Sponsor', 'Role Play • 15 min', true),
+  row(
+    'staffGraded',
+    `${L}/assignment-submission/g1/due-diligence`,
+    'Due Diligence on Claims, Vendors, and Signals',
+    'Graded Assignment • Started • Grade: -- •</span><span>Status: Due, Nov 9, 11:59 PM PST</span><span>Resume',
+  ),
+  '</ul></nav>',
+].join('');
+
 const FIXTURES: Record<string, { type: string; body: string }> = {
   [`${L}/home/module/1`]: {
     type: 'text/html',
     body: page(
-      // Sidebar outside <main> lists a module-2 item: must be ignored.
-      `<nav><a href="${L}/lecture/v9/sidebar-only">Sidebar only</a></nav>
-       <main><h1>Module 1: What AI Transformation Advisory Is</h1><ul>
-         ${li(`${L}/lecture/v1/intro`, 'Problem: The decisive work nobody scoped', 'Video • 2 min', '<svg><title>Completed</title></svg>')}
-         ${li(`${L}/supplement/r1/reading-the-room`, 'Reading the room', 'Reading • 10 min')}
-         ${li(`${L}/quiz/p1/check`, 'Quick check', 'Practice Assignment • 3 questions')}
-         ${li(`${L}/assignment-submission/g1/module-quiz`, 'Module quiz', 'Graded Assignment • 30 min')}
-         ${li(`${L}/discussionPrompt/d1/share`, 'Share your view', 'Discussion Prompt • 10 min')}
-       </ul></main>`,
+      // Sidebar module links + a nav link that exists before the list renders,
+      // a timezone dialog heading, and a timeline card linking a module-2 team page.
+      `<nav><a href="${L}/home/module/1">Module 1</a><a href="${L}/home/module/2">Module 2</a><a href="${L}/home/module/3">Module 3</a>
+         <a href="${L}/discussions">Discussion Forums</a></nav>
+       <main>
+         <div role="dialog" data-testid="timezone-modal-content"><h2>Timezone mismatch</h2></div>
+         <div id="list"><h2>Loading...</h2></div>
+         <div data-testid="course-timeline-card"><a href="${L}/team/g2/mapping-the-landscape">Mapping the landscape</a></div>
+       </main>`,
+      // Item list renders late, like the real SPA.
+      `setTimeout(() => { document.getElementById('list').innerHTML = ${JSON.stringify(MODULE_1_LIST)}; }, 1500);`,
     ),
   },
+  // Older/fallback layout: plain item links, no data-testid.
   [`${L}/home/module/2`]: {
     type: 'text/html',
     body: page(
       `<main><h2>Mapping the Enterprise AI Capability Landscape</h2><ul>
          ${li(`${L}/lecture/v2/landscape`, 'Landscape', 'Video • 4 min')}
          ${li(`${L}/supplement/r2/vendors`, 'Vendors', 'Reading • 8 min', '<span aria-label="Locked"></span>')}
+         ${li(`${L}/quiz/p1/check`, 'Quick check', 'Practice Assignment • 3 questions')}
        </ul></main>`,
     ),
   },
@@ -63,6 +102,10 @@ const FIXTURES: Record<string, { type: string; body: string }> = {
       `<main><button>Mark as completed</button><div class="rc-CML"><h2>Reading the room</h2><p>${'Stakeholders decide outcomes. '.repeat(20)}</p></div><button>Go to next item</button></main>`,
     ),
   },
+  // Simulated player (no media file): 60 s video advancing 10 s every 50 ms.
+  [`${L}/lecture/v9/watched`]: { type: 'text/html', body: page('<main><video></video></main>', fakePlayer({ seek: false })) },
+  // Learner drags the scrubber to the end after playing only 5 s.
+  [`${L}/lecture/v8/skipped`]: { type: 'text/html', body: page('<main><video></video></main>', fakePlayer({ seek: true })) },
   [`${L}/assignment-submission/g1/module-quiz`]: {
     type: 'text/html',
     body: page('<main><h1>Module quiz</h1><p>Question 1: secret question text</p></main>'),
@@ -109,27 +152,38 @@ async function open(path: string): Promise<Page> {
   return p;
 }
 
-test('fetchOutline reads modules, types, completion and lock state, then stops at a missing module', { skip, timeout: 60_000 }, async () => {
+test('fetchOutline waits for the late item list, reads real-shaped rows, falls back, and stops at a missing module', { skip, timeout: 60_000 }, async () => {
   const result = await fetchOutline(context, config);
+  assert.deepEqual(
+    result.scans.map((s) => [s.finalPath.split('/').pop(), s.scope, s.rows.length]),
+    [
+      ['1', 'item-testid', 4],
+      ['2', 'main', 3],
+      ['welcome', 'document', 0],
+    ],
+  );
+  assert.deepEqual(result.scans[0]?.moduleNumbers, [1, 2, 3]);
   assert.deepEqual(
     result.modules.map((m) => [m.number, m.title, m.itemCount]),
     [
-      [1, 'What AI Transformation Advisory Is', 5],
-      [2, 'Mapping the Enterprise AI Capability Landscape', 2],
+      [1, 'What AI Transformation Advisory Is', 4],
+      [2, 'Mapping the Enterprise AI Capability Landscape', 3],
     ],
   );
-  const summary = result.items.map((i) => `${i.module}.${i.order} ${i.id} ${i.kind} ${i.typeLabel} ${i.minutes ?? '-'}${i.courseraCompleted ? ' done' : ''}${i.locked ? ' locked' : ''}`);
+  const summary = result.items.map(
+    (i) => `${i.module}.${i.order} ${i.id} ${i.kind} ${i.typeLabel} ${i.minutes ?? '-'}${i.courseraCompleted ? ' done' : ''}${i.locked ? ' locked' : ''}`,
+  );
   assert.deepEqual(summary, [
     '1.1 v1 VIDEO Video 2 done',
-    '1.2 r1 READING Reading 10',
-    '1.3 p1 PRACTICE Practice Assignment -',
-    '1.4 g1 GRADED Graded Assignment 30',
-    '1.5 d1 OTHER Discussion Prompt 10',
+    '1.2 w1 OTHER Ungraded Plugin 10',
+    '1.3 c1 OTHER Role Play 15 done',
+    '1.4 g1 GRADED Graded Assignment -',
     '2.1 v2 VIDEO Video 4',
     '2.2 r2 READING Reading 8 locked',
+    '2.3 p1 PRACTICE Practice Assignment -',
   ]);
-  assert.equal(result.items.find((i) => i.id === 'r1')?.title, 'Reading the room');
-  assert.ok(!result.items.some((i) => i.id === 'v9'), 'sidebar link outside <main> must be ignored');
+  assert.equal(result.items.find((i) => i.id === 'g1')?.title, 'Due Diligence on Claims, Vendors, and Signals');
+  assert.ok(!result.items.some((i) => i.id === 'g2'), 'team/ links from the timeline card are not items');
 });
 
 test('captureFromPage reads a video transcript from the captions track', { skip }, async () => {
@@ -147,6 +201,22 @@ test('captureFromPage reads reading content without UI chrome', { skip }, async 
   assert.match(result.text, /^Reading the room\n/);
   assert.ok(!/Mark as completed|Go to next item/.test(result.text));
   await p.close();
+});
+
+test('videoFinished reads the real <video> state in the browser: watched → done, skipped → nothing', { skip }, async () => {
+  const run = async (id: string, slug: string) => {
+    const p = await open(`${L}/lecture/${id}/${slug}`);
+    const stop = new AbortController();
+    const timer = setTimeout(() => stop.abort(), 3000);
+    try {
+      return await videoFinished(p, asItem({ id, urlPath: `${L}/lecture/${id}/${slug}`, segment: 'lecture', kind: 'VIDEO' }), stop.signal, 50);
+    } finally {
+      clearTimeout(timer);
+      await p.close();
+    }
+  };
+  assert.equal(await run('v9', 'watched'), 'done');
+  assert.equal(await run('v8', 'skipped'), null);
 });
 
 test('captureFromPage refuses to read a graded assessment page', { skip }, async () => {
