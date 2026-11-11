@@ -203,15 +203,28 @@ export function parseItemRow(row: ParseInput): ParsedRow {
 
   const allText = [row.rowText, row.anchorText, row.ariaLabel ?? '', row.hintText].join(' \n ');
   if (!typeLabel && row.ariaLabel) typeLabel = matchTypeLabel(row.ariaLabel)?.label ?? null;
+  // Coursera's own title element beats any line guessing.
+  const knownTitle = row.nameText?.trim() || title;
+  // Status words inside the title ("The Locked Yardstick", "…order passed review")
+  // are not a status: look for them only in the rest of the row.
+  const statusText = knownTitle ? withoutTitle(allText, knownTitle) : allText;
 
   return {
-    // Coursera's own title element beats any line guessing.
-    title: row.nameText?.trim() || title || row.anchorText.trim() || '(untitled)',
+    title: knownTitle || row.anchorText.trim() || '(untitled)',
     typeLabel,
     minutes,
-    completed: Boolean(row.completedIcon) || detectCompleted(allText),
-    locked: /\blocked\b/i.test(allText) && !/\bunlocked\b/i.test(allText),
+    completed: Boolean(row.completedIcon) || detectCompleted(statusText),
+    locked: /\blocked\b/i.test(statusText) && !/\bunlocked\b/i.test(statusText),
   };
+}
+
+function withoutTitle(text: string, title: string): string {
+  const pattern = title
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    .replace(/ /g, '\\s+');
+  return pattern ? text.replace(new RegExp(pattern, 'gi'), ' ') : text;
 }
 
 export function itemDisplayType(item: Pick<CourseItem, 'kind' | 'typeLabel'>): string {

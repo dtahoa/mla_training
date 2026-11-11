@@ -95,6 +95,21 @@ test('parseItemRow reads the real Coursera row texts seen in the live probe', ()
   assert.deepEqual(graded, { title: 'What is Transformation Advisory?', typeLabel: 'Graded Assignment', minutes: null, completed: false, locked: false });
 });
 
+test('status words inside a title are not a status (seen in the live outline)', () => {
+  const locked = parseItemRow({
+    ...row('Win the Role: The Locked Yardstick\nVideo • 3 min', { ariaLabel: 'Win the Role: The Locked Yardstick' }),
+    nameText: 'Win the Role: The Locked Yardstick',
+    completedIcon: false,
+  });
+  assert.equal(locked.locked, false);
+  assert.equal(parseItemRow(row('Locked Scoring Criteria\nVideo • 2 min')).locked, false);
+  assert.equal(parseItemRow(row('Locked Scoring Criteria\nVideo • 2 min', { ariaLabel: 'Locked Scoring Criteria, Locked' })).locked, true);
+
+  const passed = parseItemRow({ ...row('Four views: One wrong work order passed review\nVideo • 4 min'), completedIcon: false });
+  assert.equal(passed.completed, false);
+  assert.equal(parseItemRow(row('Four views: One wrong work order passed review\nVideo • 4 min\nCompleted')).completed, true);
+});
+
 test('a title starting with "Due" is not mistaken for a due-date status line', () => {
   const parsed = parseItemRow(
     row('Due Diligence on Claims, Vendors, and Signals\nGraded Assignment • 30 min • Grade: -- •\nStatus: Due, Nov 25, 11:59 PM PST\nDue, Nov 25, 11:59 PM PST'),
